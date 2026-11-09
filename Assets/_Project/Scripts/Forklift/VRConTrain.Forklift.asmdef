@@ -1,0 +1,9 @@
+{
+    "name": "VRConTrain.Forklift",
+    "rootNamespace": "VRConTrain.Forklift",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.TextMeshPro"
+    ],
+    "autoReferenced": true
+}

@@ -1,0 +1,15 @@
+{
+    "name": "VRConTrain.Editor",
+    "rootNamespace": "VRConTrain.EditorTools",
+    "references": [
+        "VRConTrain.Forklift",
+        "VRConTrain.Interaction",
+        "VRConTrain.Training",
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.XR.CoreUtils",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [ "Editor" ],
+    "autoReferenced": false
+}

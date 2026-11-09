@@ -1,0 +1,33 @@
+{
+    "name": "ForkliftControls",
+    "maps": [
+        {
+            "name": "Forklift",
+            "id": "6a1f0c52-3b7e-4d21-9a44-0f6d2c1b7e01",
+            "actions": [
+                { "name": "Accelerate", "type": "Value", "id": "6a1f0c52-3b7e-4d21-9a44-0f6d2c1b7e02", "expectedControlType": "Axis", "processors": "", "interactions": "", "initialStateCheck": true },
+                { "name": "Brake", "type": "Value", "id": "6a1f0c52-3b7e-4d21-9a44-0f6d2c1b7e03", "expectedControlType": "Axis", "processors": "", "interactions": "", "initialStateCheck": true },
+                { "name": "ShiftUp", "type": "Button", "id": "6a1f0c52-3b7e-4d21-9a44-0f6d2c1b7e04", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "ShiftDown", "type": "Button", "id": "6a1f0c52-3b7e-4d21-9a44-0f6d2c1b7e05", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "Recenter", "type": "Button", "id": "6a1f0c52-3b7e-4d21-9a44-0f6d2c1b7e06", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "DebugSteer", "type": "Value", "id": "6a1f0c52-3b7e-4d21-9a44-0f6d2c1b7e07", "expectedControlType": "Axis", "processors": "", "interactions": "", "initialStateCheck": true }
+            ],
+            "bindings": [
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e01", "path": "<XRController>{RightHand}/{Trigger}", "interactions": "", "processors": "", "groups": "", "action": "Accelerate", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e02", "path": "<Keyboard>/w", "interactions": "", "processors": "", "groups": "", "action": "Accelerate", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e03", "path": "<XRController>{LeftHand}/{Trigger}", "interactions": "", "processors": "", "groups": "", "action": "Brake", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e04", "path": "<Keyboard>/s", "interactions": "", "processors": "", "groups": "", "action": "Brake", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e05", "path": "<XRController>{RightHand}/{PrimaryButton}", "interactions": "", "processors": "", "groups": "", "action": "ShiftUp", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e06", "path": "<Keyboard>/e", "interactions": "", "processors": "", "groups": "", "action": "ShiftUp", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e07", "path": "<XRController>{RightHand}/{SecondaryButton}", "interactions": "", "processors": "", "groups": "", "action": "ShiftDown", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e08", "path": "<Keyboard>/q", "interactions": "", "processors": "", "groups": "", "action": "ShiftDown", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e09", "path": "<XRController>{RightHand}/{Primary2DAxisClick}", "interactions": "", "processors": "", "groups": "", "action": "Recenter", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e10", "path": "<Keyboard>/r", "interactions": "", "processors": "", "groups": "", "action": "Recenter", "isComposite": false, "isPartOfComposite": false },
+                { "name": "Keys", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e11", "path": "1DAxis", "interactions": "", "processors": "", "groups": "", "action": "DebugSteer", "isComposite": true, "isPartOfComposite": false },
+                { "name": "negative", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e12", "path": "<Keyboard>/a", "interactions": "", "processors": "", "groups": "", "action": "DebugSteer", "isComposite": false, "isPartOfComposite": true },
+                { "name": "positive", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e13", "path": "<Keyboard>/d", "interactions": "", "processors": "", "groups": "", "action": "DebugSteer", "isComposite": false, "isPartOfComposite": true }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

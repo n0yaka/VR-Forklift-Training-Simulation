@@ -1,0 +1,11 @@
+{
+    "name": "VRConTrain.Interaction",
+    "rootNamespace": "VRConTrain.Interaction",
+    "references": [
+        "VRConTrain.Forklift",
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.XR.CoreUtils",
+        "Unity.InputSystem"
+    ],
+    "autoReferenced": true
+}
