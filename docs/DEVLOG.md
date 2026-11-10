@@ -101,3 +101,42 @@
 ### Not yet tested
 - **Not yet run on a Quest 3.** Frame rate with 219 rigidbodies and 282 renderers is unverified.
 - The scene has exponential-squared fog (density 0.05) from before this work. It hides most of the hall beyond about 20 m. Left unchanged pending Noy's decision.
+
+## 2026-11-10 — Walking, teleport, getting in and out (early Sprint 3 prototype)
+
+### Built
+- The player now starts **on foot** beside the driver's side of the forklift instead of in the seat. `Setup Ride Test Scene` moves the XR rig out of the seat and sets everything below up.
+- On-foot controls (Noy's choices):
+  - Room-scale walking with the headset, plus the left stick to walk at 2 m/s (head-relative, with strafe), using the starter rig's move provider.
+  - Right stick: 45° snap turn; pull back for 180°.
+  - Hold the right trigger to aim a teleport and release it to go. A cyan arc runs from the right hand and Noy's Floating Marker (0.6 scale) bobs over the landing spot. The arc turns red, and no marker shows, on slopes over 30°, surfaces more than 0.5 m above or below the feet (shelves, the forklift roof), or anywhere a 0.25 m × 1.8 m body doesn't fit. The player keeps their heading.
+  - A gets in when the head is within 2.5 m of the seat. A billboard "Press A to get in" prompt shows over the cab while in range.
+  - Left stick click gets out, only below 0.3 m/s. The driver is placed on the left side of the cab, or on the right or behind it if that side is blocked. "Stop the forklift before getting out" and "No room to get out here" show on a cab hint, as does "Click the left stick to get out" for 4 s after getting in.
+- `ForkliftBoarding` switches modes. On foot, the body capsule, locomotion and teleporter are on, and the driver input and seat recenter are off. Seated, it's the other way round, and the rig rides on the seat anchor.
+- `ForkliftInputRouter.DriverPresent`: with no driver, the forklift holds full brake and ignores the accelerator and mast levers, so the right trigger (teleport on foot) can't drive it.
+- `TriggerTeleporter` (custom arc, XRI `TeleportationProvider` for the move) and `LocomotionMath` (pure: arc points, slope, step height, horizontal distance, exit speed), with 20 new EditMode test cases.
+- New `Player` action map in `ForkliftControls.inputactions`: Teleport (right trigger, keyboard T), EnterForklift (A, keyboard F), ExitForklift (left stick click, keyboard F).
+- Starter rig items turned off so no control has two jobs: Jump (bound to A), Climb, Grab Move, continuous turn, right-stick move, left-stick snap turn, the stick-forward teleport interactor and `ControllerInputActionManager`.
+
+### Problems and fixes
+| Problem | Cause | Fix |
+|---|---|---|
+| Trigger held but no teleport arc; A did nothing | `InputAction.WasPressedThisFrame()` was always false for the XR controller, while `IsPressed()` read correctly. The Input System processed the controller's events outside the frame's main input update | Both components find presses themselves by comparing `IsPressed()` with the previous frame. A trigger already held when the teleporter turns on must be released first |
+| Getting out with a box beside the cab put the player on top of the box | The floor raycast hit the box top, and there was room to stand there | An exit spot must be walkable and within 0.3 m of the forklift's ground level |
+| The seat recenter could pull an on-foot player into the cab | `SeatedRigRecenter` recentered at start, and disabling a component doesn't stop its coroutine | It starts disabled and is enabled only while seated, and the coroutine checks `enabled` before recentering |
+| A or the trigger could do two things | The starter rig binds Jump to A, and the forklift uses A for shift-up and the trigger for the accelerator | Jump is off. The forklift map is enabled only while seated, and the teleporter only on foot. Pressing A to get in doesn't also shift gear |
+
+### Test results (Editor Play mode, simulated XR controllers through the real Input System bindings, no headset)
+- EditMode: 55/55 passed. Scripts compile with 0 errors and 0 new warnings.
+- Start: on foot at forklift-space (-2.2, 0, -0.6) facing the cab, grounded, prompt showing, forklift braked.
+- Left stick: back for 1 s moved exactly 2.00 m; strafe for 0.5 s moved 1.00 m, with height unchanged. Walking into the cab stopped at the chassis side (x = -0.98).
+- Right stick: 90° → 135° → 90°.
+- Teleport: aimed at the forklift, the arc was red with no marker, and releasing didn't move the player. Aimed at the floor, it was cyan with the marker, and the player landed 0.000 m from the target with the same heading. Spots under the chassis were rejected.
+- A out of range did nothing. A in range: seated, eye error 0.000 m, locomotion and teleporter off, gear unchanged (Neutral), exit hint showing. A again while seated: Neutral → Forward.
+- Driving at 2.14 m/s: no arc, and the camera stayed on the seat. An exit attempt was refused with the stop hint. After braking to 0, the exit put the player at (-1.30, 0, -0.60) on the floor.
+- Left side blocked: got out at (1.30, 0, -0.60). Left, right and back blocked: stayed seated with "No room to get out here".
+- On foot, holding the trigger for 1.5 s moved the forklift 0.000 m. Getting back in worked.
+
+### Not yet tested
+- **Not yet run on a Quest 3.** Room-scale walking, the real tracking-origin height, how far the arc reaches, comfort, and whether `IsPressed` presses feel right on device are unverified.
+- Physical walking with the headset can still pass through walls and the forklift; only stick movement and teleport respect the body capsule.

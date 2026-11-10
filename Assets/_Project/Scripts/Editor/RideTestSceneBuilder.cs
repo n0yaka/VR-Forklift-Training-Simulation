@@ -8,14 +8,17 @@ using UnityEngine.SceneManagement;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Interactors.Casters;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
 using VRConTrain.Forklift;
 using VRConTrain.Interaction;
 
 namespace VRConTrain.EditorTools
 {
     /// <summary>
-    /// Builds the ride test in the active scene: ground, light, forklift physics, steering wheel, mast levers and a
-    /// seated XR rig.
+    /// Builds the ride test in the active scene: ground, light, forklift physics, steering wheel, mast levers, and an
+    /// XR rig that starts on foot beside the forklift and can get in and out of the seat.
     /// Safe to run again; anything it already created is reused.
     /// </summary>
     public static class RideTestSceneBuilder
@@ -40,9 +43,24 @@ namespace VRConTrain.EditorTools
         const float k_LeverGrabRadius = 0.045f;
         const float k_LeverKnobLength = 0.08f;
 
+        const string k_MarkerPrefabPath = "Assets/_Project/Prefabs/Warehouse/Floating Marker.prefab";
+        const string k_ArcValidMaterialPath = k_MaterialsFolder + "/Teleport Arc Valid.mat";
+        const string k_ArcInvalidMaterialPath = k_MaterialsFolder + "/Teleport Arc Invalid.mat";
+        const string k_TeleportMarkerName = "Teleport Marker";
+        // The Floating Marker is 0.9 m tall; 0.6 scale makes the teleport arrow about 0.55 m.
+        const float k_TeleportMarkerScale = 0.6f;
+        // Left-stick walking speed in m/s; the starter rig's 2.5 m/s is closer to a jog.
+        const float k_WalkSpeed = 2f;
+
         static readonly Vector3 s_SteeringAxisForkliftSpace = new Vector3(0f, 0.3746f, -0.9272f);
         static readonly Vector3 s_EyePoint = new Vector3(0f, 1.93f, -0.30f);
         static readonly Vector3 s_GearReadoutPosition = new Vector3(0f, 1.8f, 0.3f);
+        // Where the player starts on foot: beside the driver's left side, 2.2 m out from the centre line.
+        static readonly Vector3 s_PlayerStart = new Vector3(-2.2f, 0f, -0.6f);
+        // Above the overhead guard, so the prompt can be seen from any side.
+        static readonly Vector3 s_BoardingPromptPosition = new Vector3(0f, 2.7f, -0.4f);
+        // In the driver's view, just above the gear readout.
+        static readonly Vector3 s_CabHintPosition = new Vector3(0f, 1.98f, 0.5f);
 
         /// <summary>Builds or updates the ride test in the active scene.</summary>
         [MenuItem("VRConTrain/Setup Ride Test Scene")]
@@ -108,7 +126,7 @@ namespace VRConTrain.EditorTools
                 ("_mast", mast), ("_liftLever", liftLever), ("_tiltLever", tiltLever), ("_sideShiftLever", sideShiftLever));
 
             BuildGearReadout(forklift.transform, controller);
-            BuildSeatedRig(forklift.transform, input);
+            BuildPlayerRig(scene, forklift.transform, input, controller, router, controls);
 
             Undo.CollapseUndoOperations(undoGroup);
             EditorSceneManager.MarkSceneDirty(scene);
@@ -337,42 +355,55 @@ namespace VRConTrain.EditorTools
             SetFields(readout, ("_controller", controller));
         }
 
-        static void BuildSeatedRig(Transform forklift, ControllerButtonInput input)
+        /// <summary>
+        /// Puts the XR rig on foot beside the forklift and sets up walking, snap turn, trigger teleport, and getting
+        /// in and out of the seat. At runtime <see cref="ForkliftBoarding"/> switches between on foot and seated.
+        /// </summary>
+        static void BuildPlayerRig(Scene scene, Transform forklift, ControllerButtonInput input, ForkliftController controller,
+            ForkliftInputRouter router, InputActionAsset controls)
         {
             var seat = GetOrCreateChild(forklift, "Seat Anchor");
             seat.localPosition = s_EyePoint;
             seat.localRotation = Quaternion.identity;
 
-            var origin = seat.GetComponentInChildren<XROrigin>(true);
+            var origin = FindInScene<XROrigin>(scene);
             if (origin == null)
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(k_RigPrefabPath);
-                var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, seat);
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
                 Undo.RegisterCreatedObjectUndo(instance, "Create XR rig");
                 origin = instance.GetComponent<XROrigin>();
             }
 
             var rig = origin.gameObject;
-            rig.transform.localPosition = Vector3.zero;
-            rig.transform.localRotation = Quaternion.identity;
 
-            // A seated driver doesn't walk, turn or teleport, and the rig's body capsule would push against the cab.
+            // The rig used to live on the seat. It now starts on foot beside the driver's side, facing the forklift.
+            if (rig.transform.parent != null)
+                Undo.SetTransformParent(rig.transform, null, "Move XR rig out of the seat");
+
+            var start = forklift.TransformPoint(s_PlayerStart);
+            start.y = forklift.position.y;
+            var facing = Vector3.ProjectOnPlane(forklift.right, Vector3.up).normalized;
+            Undo.RecordObject(rig.transform, "Place XR rig");
+            rig.transform.SetPositionAndRotation(start, Quaternion.LookRotation(facing, Vector3.up));
+            PrefabUtility.RecordPrefabInstancePropertyModifications(rig.transform);
+
             var characterController = rig.GetComponent<CharacterController>();
-            if (characterController != null)
-                characterController.enabled = false;
+            SetEnabled(characterController, true);
 
             var locomotion = rig.transform.Find("Locomotion");
-            if (locomotion != null)
-                locomotion.gameObject.SetActive(false);
+            SetActive(locomotion.gameObject, true);
+            ConfigureLocomotion(locomotion);
 
             foreach (var transform in rig.GetComponentsInChildren<Transform>(true))
             {
+                // Teleport uses the right trigger (TriggerTeleporter), not the starter rig's stick-forward teleport.
                 if (transform.name == "Teleport Interactor")
-                    transform.gameObject.SetActive(false);
+                    SetActive(transform.gameObject, false);
 
-                // This component would turn the teleport interactor back on when the stick is pushed.
+                // This component would turn the stick teleport back on and fight the locomotion setup below.
                 if (transform.GetComponent("ControllerInputActionManager") is Behaviour inputActionManager)
-                    inputActionManager.enabled = false;
+                    SetEnabled(inputActionManager, false);
             }
 
             // Hands grab the wheel by reaching it, so no far ray, and the near check must see the wheel's trigger.
@@ -392,8 +423,167 @@ namespace VRConTrain.EditorTools
                 PrefabUtility.RecordPrefabInstancePropertyModifications(interactor);
             }
 
+            // Off until the player sits down; ForkliftBoarding turns it on.
             var recenter = GetOrAdd<SeatedRigRecenter>(seat.gameObject);
             SetFields(recenter, ("_origin", origin), ("_eyePoint", seat), ("_inputSource", input));
+            SetEnabled(recenter, false);
+
+            var teleporter = BuildTeleporter(rig.transform, origin, locomotion, controls);
+
+            var boarding = GetOrAdd<ForkliftBoarding>(forklift.gameObject);
+            SetFields(boarding,
+                ("_origin", origin), ("_body", characterController), ("_locomotion", locomotion.gameObject),
+                ("_teleporter", teleporter), ("_seatAnchor", seat), ("_seatedRecenter", recenter),
+                ("_forklift", controller), ("_router", router), ("_driverInput", input), ("_controls", controls),
+                ("_boardPrompt", BuildLabel(forklift, "Boarding Prompt", "Press A to get in", 2f, new Vector2(2f, 0.3f), s_BoardingPromptPosition)),
+                ("_cabHint", BuildLabel(forklift, "Cab Hint", "", 0.5f, new Vector2(1f, 0.1f), s_CabHintPosition)));
+        }
+
+        /// <summary>
+        /// Left stick walks (head-relative, with strafe) and the right stick snap turns 45°. The starter rig's other
+        /// movement (grab move, climb, jump on A, continuous turn, right-stick move) is turned off so no control has
+        /// two jobs.
+        /// </summary>
+        static void ConfigureLocomotion(Transform locomotion)
+        {
+            foreach (var unused in new[] { "Grab Move", "Climb", "Jump" })
+            {
+                var child = locomotion.Find(unused);
+                if (child != null)
+                    SetActive(child.gameObject, false);
+            }
+
+            var move = locomotion.Find("Move").GetComponent<ContinuousMoveProvider>();
+            var serializedMove = new SerializedObject(move);
+            serializedMove.FindProperty("m_MoveSpeed").floatValue = k_WalkSpeed;
+            serializedMove.FindProperty("m_EnableStrafe").boolValue = true;
+            serializedMove.FindProperty("m_RightHandMoveInput.m_InputSourceMode").enumValueIndex = 0; // Unused
+            serializedMove.ApplyModifiedProperties();
+
+            var turn = locomotion.Find("Turn");
+            var serializedSnap = new SerializedObject(turn.GetComponent<SnapTurnProvider>());
+            serializedSnap.FindProperty("m_TurnAmount").floatValue = 45f;
+            serializedSnap.FindProperty("m_EnableTurnLeftRight").boolValue = true;
+            serializedSnap.FindProperty("m_EnableTurnAround").boolValue = true;
+            serializedSnap.FindProperty("m_LeftHandTurnInput.m_InputSourceMode").enumValueIndex = 0; // Unused
+            serializedSnap.ApplyModifiedProperties();
+
+            SetEnabled(turn.GetComponent<ContinuousTurnProvider>(), false);
+        }
+
+        static TriggerTeleporter BuildTeleporter(Transform rig, XROrigin origin, Transform locomotion, InputActionAsset controls)
+        {
+            var holder = GetOrCreateChild(rig, "Trigger Teleporter");
+
+            var line = GetOrAdd<LineRenderer>(holder.gameObject);
+            line.useWorldSpace = true;
+            line.widthMultiplier = 0.015f;
+            line.numCapVertices = 2;
+            line.alignment = LineAlignment.View;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            line.positionCount = 0;
+            line.enabled = false;
+
+            var marker = holder.Find(k_TeleportMarkerName);
+            if (marker == null)
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(k_MarkerPrefabPath);
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, holder);
+                Undo.RegisterCreatedObjectUndo(instance, "Create teleport marker");
+                instance.name = k_TeleportMarkerName;
+                marker = instance.transform;
+            }
+
+            marker.localScale = Vector3.one * k_TeleportMarkerScale;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(marker);
+            SetActive(marker.gameObject, false);
+
+            var aimOrigin = FindDeep(rig, "Right Controller Teleport Stabilized Origin") ?? FindDeep(rig, "Right Controller");
+            var provider = locomotion.Find("Teleportation").GetComponent<TeleportationProvider>();
+
+            var teleporter = GetOrAdd<TriggerTeleporter>(holder.gameObject);
+            SetFields(teleporter,
+                ("_origin", origin), ("_provider", provider), ("_aimOrigin", aimOrigin), ("_controls", controls),
+                ("_line", line), ("_marker", marker),
+                ("_validMaterial", GetUnlitMaterial(k_ArcValidMaterialPath, new Color(0.35f, 0.85f, 1f))),
+                ("_invalidMaterial", GetUnlitMaterial(k_ArcInvalidMaterialPath, new Color(1f, 0.25f, 0.2f))));
+            return teleporter;
+        }
+
+        static TextMeshPro BuildLabel(Transform forklift, string name, string message, float fontSize, Vector2 size, Vector3 localPosition)
+        {
+            // Adding TextMeshPro swaps the Transform for a RectTransform, so only use the transform from the text.
+            var text = GetOrAdd<TextMeshPro>(GetOrCreateChild(forklift, name).gameObject);
+            text.text = message;
+            text.fontSize = fontSize;
+            text.alignment = TextAlignmentOptions.Center;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.rectTransform.sizeDelta = size;
+            text.rectTransform.localPosition = localPosition;
+            text.rectTransform.localRotation = Quaternion.identity;
+            text.gameObject.SetActive(false);
+            return text;
+        }
+
+        static Material GetUnlitMaterial(string path, Color color)
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                System.IO.Directory.CreateDirectory(k_MaterialsFolder);
+                material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetColor("_BaseColor", color);
+            EditorUtility.SetDirty(material);
+            AssetDatabase.SaveAssetIfDirty(material);
+            return material;
+        }
+
+        static T FindInScene<T>(Scene scene) where T : Component
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var found = root.GetComponentInChildren<T>(true);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
+        static Transform FindDeep(Transform root, string name)
+        {
+            foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (transform.name == name)
+                    return transform;
+            }
+
+            return null;
+        }
+
+        static void SetActive(GameObject gameObject, bool active)
+        {
+            Undo.RecordObject(gameObject, active ? "Activate " + gameObject.name : "Deactivate " + gameObject.name);
+            gameObject.SetActive(active);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(gameObject);
+        }
+
+        static void SetEnabled(Behaviour behaviour, bool enabled)
+        {
+            Undo.RecordObject(behaviour, "Toggle " + behaviour.GetType().Name);
+            behaviour.enabled = enabled;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(behaviour);
+        }
+
+        static void SetEnabled(CharacterController characterController, bool enabled)
+        {
+            Undo.RecordObject(characterController, "Toggle CharacterController");
+            characterController.enabled = enabled;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(characterController);
         }
 
         static GameObject FindRoot(Scene scene, string name)

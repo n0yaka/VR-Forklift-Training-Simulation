@@ -27,6 +27,23 @@
                 { "name": "negative", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e12", "path": "<Keyboard>/a", "interactions": "", "processors": "", "groups": "", "action": "DebugSteer", "isComposite": false, "isPartOfComposite": true },
                 { "name": "positive", "id": "7b2f0c52-3b7e-4d21-9a44-0f6d2c1b7e13", "path": "<Keyboard>/d", "interactions": "", "processors": "", "groups": "", "action": "DebugSteer", "isComposite": false, "isPartOfComposite": true }
             ]
+        },
+        {
+            "name": "Player",
+            "id": "8c3f0c52-3b7e-4d21-9a44-0f6d2c1b7e01",
+            "actions": [
+                { "name": "Teleport", "type": "Button", "id": "8c3f0c52-3b7e-4d21-9a44-0f6d2c1b7e02", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "EnterForklift", "type": "Button", "id": "8c3f0c52-3b7e-4d21-9a44-0f6d2c1b7e03", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "ExitForklift", "type": "Button", "id": "8c3f0c52-3b7e-4d21-9a44-0f6d2c1b7e04", "expectedControlType": "Button", "processors": "", "interactions": "", "initialStateCheck": false }
+            ],
+            "bindings": [
+                { "name": "", "id": "9d4f0c52-3b7e-4d21-9a44-0f6d2c1b7e01", "path": "<XRController>{RightHand}/{Trigger}", "interactions": "", "processors": "", "groups": "", "action": "Teleport", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "9d4f0c52-3b7e-4d21-9a44-0f6d2c1b7e02", "path": "<Keyboard>/t", "interactions": "", "processors": "", "groups": "", "action": "Teleport", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "9d4f0c52-3b7e-4d21-9a44-0f6d2c1b7e03", "path": "<XRController>{RightHand}/{PrimaryButton}", "interactions": "", "processors": "", "groups": "", "action": "EnterForklift", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "9d4f0c52-3b7e-4d21-9a44-0f6d2c1b7e04", "path": "<Keyboard>/f", "interactions": "", "processors": "", "groups": "", "action": "EnterForklift", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "9d4f0c52-3b7e-4d21-9a44-0f6d2c1b7e05", "path": "<XRController>{LeftHand}/{Primary2DAxisClick}", "interactions": "", "processors": "", "groups": "", "action": "ExitForklift", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "9d4f0c52-3b7e-4d21-9a44-0f6d2c1b7e06", "path": "<Keyboard>/f", "interactions": "", "processors": "", "groups": "", "action": "ExitForklift", "isComposite": false, "isPartOfComposite": false }
+            ]
         }
     ],
     "controlSchemes": []

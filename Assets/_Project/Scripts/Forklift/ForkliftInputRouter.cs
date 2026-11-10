@@ -31,6 +31,12 @@ namespace VRConTrain.Forklift
         [Tooltip("How fast keyboard steering turns the steering wheel, in degrees per second.")]
         [SerializeField, Min(0f)] private float _debugSteerRate = 240f;
 
+        /// <summary>
+        /// True while someone is in the driver's seat. With no driver the forklift holds its brake and ignores the
+        /// accelerator and mast levers.
+        /// </summary>
+        public bool DriverPresent { get; set; } = true;
+
         private IForkliftInputSource _input;
         private IForkliftSteering _steeringControl;
         private IForkliftLever _lift;
@@ -72,6 +78,15 @@ namespace VRConTrain.Forklift
 
         private void Update()
         {
+            if (!DriverPresent)
+            {
+                _controller.SetDriverInput(0f, 1f, _steeringControl.Steer);
+                if (_mast != null)
+                    _mast.SetInput(0f, 0f, 0f);
+
+                return;
+            }
+
             var debugSteer = _input.DebugSteer;
             if (!Mathf.Approximately(debugSteer, 0f))
                 _steeringControl.Turn(debugSteer * _debugSteerRate * Time.deltaTime);

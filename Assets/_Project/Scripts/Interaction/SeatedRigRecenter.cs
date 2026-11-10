@@ -7,7 +7,8 @@ namespace VRConTrain.Interaction
 {
     /// <summary>
     /// Keeps the driver's head at the seat's eye point. Recenters once when headset tracking starts, and again
-    /// whenever the driver presses the recenter control.
+    /// whenever the driver presses the recenter control. <see cref="ForkliftBoarding"/> enables it only while the
+    /// player is seated.
     /// </summary>
     public sealed class SeatedRigRecenter : MonoBehaviour
     {
@@ -49,7 +50,9 @@ namespace VRConTrain.Interaction
                 yield return null;
             }
 
-            Recenter();
+            // Disabling the component doesn't stop this coroutine, so skip it if the driver got out meanwhile.
+            if (enabled)
+                Recenter();
         }
 
         /// <summary>Moves the rig so the camera sits at the eye point, facing the same way.</summary>
