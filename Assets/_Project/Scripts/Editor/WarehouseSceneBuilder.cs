@@ -19,9 +19,12 @@ namespace VRConTrain.EditorTools
 
         const string k_BuildingModelPath = "Assets/Art/Warehouse Environment.blend";
         const string k_StuffModelPath = "Assets/Art/Warehouse Stuff.blend";
+        const string k_PalletModelPath = "Assets/Art/Pallete.fbx";
         const string k_PrefabFolder = "Assets/_Project/Prefabs/Warehouse";
 
         const float k_BoxMass = 30f;
+        const float k_PalletMass = 60f;
+        const float k_PalletHeight = 0.192f;
         const float k_ConeMass = 3f;
         const float k_ConeMaxDepenetrationSpeed = 2f;
 
@@ -71,6 +74,10 @@ namespace VRConTrain.EditorTools
         static readonly Vector2 s_StackedBox = new Vector2(15.9f, 3.2f);
         static readonly Vector2 s_LaneEndMarker = new Vector2(-14f, -1f);
 
+        // Straight ahead of the forklift, past the end of the cone lane, with the pallet's pockets facing it.
+        static readonly Vector2 s_PalletSpot = new Vector2(-14f, 2f);
+        const string k_PalletLoadName = "Pallet Load";
+
         /// <summary>Builds or rebuilds the warehouse in the active scene.</summary>
         [MenuItem("VRConTrain/Setup Warehouse Environment")]
         public static void Build()
@@ -108,11 +115,36 @@ namespace VRConTrain.EditorTools
             BuildBuilding(root.transform);
             BuildRacks(root.transform, prefabs);
             BuildFloorItems(root.transform, prefabs);
+            BuildPalletLoad(root.transform, prefabs.Box);
             PlaceForklift(scene, root.transform);
 
             Undo.CollapseUndoOperations(undoGroup);
             EditorSceneManager.MarkSceneDirty(scene);
             Debug.Log("Setup Warehouse Environment: done. Save the scene to keep the changes.");
+        }
+
+        /// <summary>
+        /// Puts one pallet with a box on it in the existing warehouse, leaving the rest as it is. Running it again
+        /// puts the load back at its starting place.
+        /// </summary>
+        [MenuItem("VRConTrain/Add Pallet Load")]
+        public static void AddPalletLoad()
+        {
+            var scene = SceneManager.GetActiveScene();
+            var root = FindRoot(scene, k_RootName);
+            if (root == null)
+            {
+                Debug.LogError("Add Pallet Load: no Warehouse in the scene. Run Setup Warehouse Environment first.");
+                return;
+            }
+
+            var old = root.transform.Find(k_PalletLoadName);
+            if (old != null)
+                Undo.DestroyObjectImmediate(old.gameObject);
+
+            BuildPalletLoad(root.transform, AssetDatabase.LoadAssetAtPath<GameObject>($"{k_PrefabFolder}/Box.prefab"));
+            EditorSceneManager.MarkSceneDirty(scene);
+            Debug.Log("Add Pallet Load: done. Save the scene to keep the changes.");
         }
 
         struct Prefabs
@@ -147,7 +179,7 @@ namespace VRConTrain.EditorTools
                 var collider = root.AddComponent<BoxCollider>();
                 collider.center = boxBounds.center - BottomCenter(boxBounds);
                 collider.size = boxBounds.size;
-                root.AddComponent<Rigidbody>().mass = k_BoxMass;
+                AddLoadBody(root, k_BoxMass);
             });
 
             var coneBounds = PartBounds(model, Require(model, "Cone"));
@@ -230,6 +262,14 @@ namespace VRConTrain.EditorTools
             SetStaticRecursively(building);
         }
 
+        static void AddLoadBody(GameObject root, float mass)
+        {
+            var body = root.AddComponent<Rigidbody>();
+            body.mass = mass;
+            // The forklift is interpolated, so a load that isn't looks like it shakes on the forks while driving.
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+        }
+
         static void AddBox(GameObject holder, Vector3 center, Vector3 size)
         {
             var box = holder.AddComponent<BoxCollider>();
@@ -299,6 +339,38 @@ namespace VRConTrain.EditorTools
             var markers = CreateGroup(root, "Markers");
             Place(prefabs.Marker, markers, Floor(s_LaneEndMarker, 0.6f), 0f).name = "Marker - Lane End";
             Place(prefabs.Marker, markers, Floor(s_StagingBoxes[0], prefabs.BoxHeight + 0.3f), 0f).name = "Marker - Pick Up Box";
+        }
+
+        static void BuildPalletLoad(Transform root, GameObject boxPrefab)
+        {
+            var load = CreateGroup(root, k_PalletLoadName);
+            Undo.RegisterCreatedObjectUndo(load.gameObject, "Create pallet load");
+            Place(CreatePalletPrefab(), load, Floor(s_PalletSpot, k_SettleGap), 0f);
+            Place(boxPrefab, load, Floor(s_PalletSpot, k_PalletHeight + k_SettleGap * 2f), 0f);
+        }
+
+        static GameObject CreatePalletPrefab()
+        {
+            // The FBX has one object, so Unity makes it the model's root. An empty parent turns it into a part like
+            // those of the other models, with its import scale, rotation and offset.
+            var model = new GameObject("Pallet Model").transform;
+            PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(k_PalletModelPath), model);
+            var pivot = BottomCenter(PartBounds(model, Require(model, "Pallete")));
+
+            var prefab = CreatePartPrefab(model, "Pallete", "Pallet", pivot, (root, mesh) =>
+            {
+                // Measured from the mesh. A moving body can't use the mesh's own shape, and these leave the two fork
+                // pockets open (0.86 m wide, 0.117 m high, 0.037 m off the floor).
+                AddBox(root, new Vector3(0f, 0.0185f, 0f), new Vector3(2f, 0.037f, 2f)); // bottom boards
+                AddBox(root, new Vector3(0f, 0.173f, 0f), new Vector3(2f, 0.038f, 2f)); // top boards
+                AddBox(root, new Vector3(-0.9495f, 0.0955f, 0f), new Vector3(0.101f, 0.117f, 2f)); // stringers
+                AddBox(root, new Vector3(0f, 0.0955f, 0f), new Vector3(0.086f, 0.117f, 2f));
+                AddBox(root, new Vector3(0.9495f, 0.0955f, 0f), new Vector3(0.101f, 0.117f, 2f));
+                AddLoadBody(root, k_PalletMass);
+            });
+
+            Object.DestroyImmediate(model.gameObject);
+            return prefab;
         }
 
         static void PlaceForklift(Scene scene, Transform root)

@@ -25,8 +25,8 @@ namespace VRConTrain.Forklift
         [Tooltip("Lift speed at full lever, in m/s.")]
         [SerializeField, Min(0f)] private float _liftSpeed = 0.35f;
 
-        [Tooltip("How far the carriage can lower below its modelled position, in metres (negative).")]
-        [SerializeField] private float _minLift = -0.55f;
+        [Tooltip("How far the carriage can lower below its modelled position, in metres (negative). At -0.51 the tines line up with the pockets of a pallet on the floor.")]
+        [SerializeField] private float _minLift = -0.51f;
 
         [Tooltip("How far the carriage can rise above its modelled position, in metres.")]
         [SerializeField] private float _maxLift = 0.9f;
